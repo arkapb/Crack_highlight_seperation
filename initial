@@ -1,0 +1,114 @@
+%load image
+      path=imgetfile();
+      originalImage1=imread('crack1.jpg');
+      
+      originalImage = rgb2gray(originalImage1);
+      figure
+      imshow(originalImage);
+   
+      thresholdValue = 100;
+      binaryImage = originalImage > thresholdValue;
+      binaryImage = imfill(binaryImage, 'holes');
+      hold on;
+     
+      figure
+      imshow(binaryImage);
+      
+      
+     
+      bw= bwareaopen(binaryImage, round(0.1*numel(binaryImage)));
+      figure
+      imshow(bw)
+      g=bwmorph(bw,'clean');
+      figure
+      imshow(g);
+     
+      labeledImage = bwlabel(g,4); 
+      figure
+      imshow(labeledImage, []);
+      
+      coloredLabels = label2rgb (labeledImage, 'hsv', 'k', 'shuffle');
+      figure
+      imshow(coloredLabels);
+      axis image;
+     
+      blobMeasurements = regionprops(labeledImage, originalImage, 'all');
+      numberOfBlobs = size(blobMeasurements, 1);
+      figure
+      imshow(originalImage);
+      axis image; 
+      hold on;
+      boundaries = bwboundaries(binaryImage);
+      numberOfBoundaries = size(boundaries, 1);
+      for k = 1 : numberOfBoundaries
+      	thisBoundary = boundaries{k};
+      	plot(thisBoundary(:,2), thisBoundary(:,1), 'g', 'LineWidth', 2);
+      end
+      hold off;
+      
+      
+      measurements = regionprops(labeledImage, 'Area');
+      boundaries = bwboundaries(binaryImage);
+      numberOfBoundaries = size(boundaries, 1);
+      for blobIndex = 1 : numberOfBoundaries
+      	thisBoundary = boundaries{blobIndex};
+      	x = thisBoundary(:, 2); % x = columns.
+      	y = thisBoundary(:, 1); % y = rows.
+      	
+      	
+      	maxDistance = -inf;
+      	for k = 1 : length(x)
+      		distances = sqrt( (x(k) - x) .^ 2 + (y(k) - y) .^ 2 );
+      		[thisMaxDistance, indexOfMaxDistance] = max(distances);
+      		if thisMaxDistance > maxDistance
+      			maxDistance = thisMaxDistance;
+      			index1 = k;
+      			index2 = indexOfMaxDistance;
+      		end
+          end
+      
+      	xMidPoint = mean([x(index1), x(index2)]);
+      	yMidPoint = mean([y(index1), y(index2)]);
+      	longSlope = (y(index1) - y(index2)) / (x(index1) - x(index2))
+      	perpendicularSlope = -1/longSlope
+      	
+      	y1 = perpendicularSlope * (1 - xMidPoint) + yMidPoint;
+      	y2 = perpendicularSlope * (columns - xMidPoint) + yMidPoint;
+      	
+      	
+      	[cx,cy,c] = improfile(binaryImage,[1, columns], [y1, y2], 1000);
+      	
+      	c(isnan(c)) = 0;
+      	firstIndex = find(c, 1, 'first');
+      	lastIndex = find(c, 1, 'last');
+      	
+      	perpendicularWidth = sqrt( (cx(firstIndex) - cx(lastIndex)) .^ 2 + (cy(firstIndex) - cy(lastIndex)) .^ 2 );
+      	
+      	averageWidth = measurements(blobIndex).Area / maxDistance;
+      	
+      
+      	subplot(2, 2, 3);
+      	plot(x, y, 'y-', 'LineWidth', 3);
+      	
+      	line([x(index1), x(index2)], [y(index1), y(index2)], 'Color', 'r', 'LineWidth', 3);
+      	plot(xMidPoint, yMidPoint, 'r*', 'MarkerSize', 15, 'LineWidth', 2);
+      	
+      	line([1, columns], [y1, y2], 'Color', 'g', 'LineWidth', 3);	
+      	line([cx(firstIndex), cx(lastIndex)], [cy(firstIndex), cy(lastIndex)], 'Color', 'm', 'LineWidth', 3);
+      	
+      	
+      	subplot(2, 2, 4);
+      	plot(x, y, 'y-', 'LineWidth', 3);
+      	
+      	line([x(index1), x(index2)], [y(index1), y(index2)], 'Color', 'r', 'LineWidth', 3);
+      	plot(xMidPoint, yMidPoint, 'r*', 'MarkerSize', 15, 'LineWidth', 2);
+      	
+      	line([1, columns], [y1, y2], 'Color', 'g', 'LineWidth', 3);	
+      	line([cx(firstIndex), cx(lastIndex)], [cy(firstIndex), cy(lastIndex)], 'Color', 'm', 'LineWidth', 3);
+      	
+      	message = sprintf('The longest line is red.\nPerpendicular to that, at the midpoint, is green.\nMax distance for blob #%d = %.2f\nPerpendicular distance at midpoint = %.2f\nAverage perpendicular width = %.2f (approximately\nArea = %d', ...
+      		blobIndex, maxDistance, perpendicularWidth, averageWidth, measurements(blobIndex).Area);
+      	fprintf('%s\n', message);
+      	uiwait(helpdlg(message));
+      end
+      hold off;
